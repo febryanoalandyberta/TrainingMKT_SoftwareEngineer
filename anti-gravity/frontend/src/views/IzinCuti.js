@@ -1,4 +1,7 @@
 import AbstractView from "./AbstractView.js";
+import { AuthService } from "../services/AuthService.js";
+import { AttendanceAPI } from "../services/AttendanceService.js";
+
 
 export default class extends AbstractView {
     constructor() {
@@ -7,6 +10,9 @@ export default class extends AbstractView {
     }
 
     async getHtml() {
+        const user = AuthService.getUser();
+        const savedPhoto = localStorage.getItem('user_profile_photo') || null;
+
         return `
             <div class="header">
                  <div class="header-content">
@@ -16,10 +22,15 @@ export default class extends AbstractView {
                     </div>
                      <div class="user-profile">
                         <div class="user-info">
-                            <h4>Febryano Alandy</h4>
-                            <p>IT Support</p>
+                            <h4>${user.name}</h4>
+                            <p>${user.role}</p>
                         </div>
-                         <span class="material-icons-round avatar">account_circle</span>
+                        <a href="/profile" data-link style="text-decoration: none; color: inherit; display: flex;">
+                             ${savedPhoto
+                ? `<img src="${savedPhoto}" class="avatar-img">`
+                : `<span class="material-icons-round avatar">account_circle</span>`
+            }
+                        </a>
                     </div>
                  </div>
             </div>
@@ -40,23 +51,34 @@ export default class extends AbstractView {
                     <span class="material-icons-round" style="font-size: 2.5rem; color: #ddd;">event_available</span>
                 </div>
 
-                <form style="display: flex; flex-direction: column; gap: 15px;">
+                <form id="cuti-form" style="display: flex; flex-direction: column; gap: 15px;">
                     <div class="form-group">
                         <label class="form-label" style="font-weight: 400;">Mulai Tanggal</label>
-                        <input type="date" class="form-input" style="border-radius: 8px;">
+                        <input type="date" id="cuti-start" class="form-input" style="border-radius: 8px;" required>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" style="font-weight: 400;">Sampai Tanggal</label>
-                        <input type="date" class="form-input" style="border-radius: 8px;">
+                        <input type="date" id="cuti-end" class="form-input" style="border-radius: 8px;" required>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" style="font-weight: 400;">Keterangan Cuti</label>
-                         <textarea class="form-input" style="border-radius: 8px; height: 100px;" placeholder="Alasan cuti..."></textarea>
+                         <textarea id="cuti-desc" class="form-input" style="border-radius: 8px; height: 100px;" placeholder="Alasan cuti..." required></textarea>
                     </div>
 
-                    <button type="button" class="btn-absen" style="margin-top: 20px; font-size: 1rem; padding: 12px;">Ajukan Cuti</button>
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 400;">Lampiran (Foto Dokumen Jika Ada)</label>
+                        <input type="file" id="cuti-file" style="display: none;" accept="image/*">
+                        <div id="cuti-dropzone" style="border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 8px; background: white; color: #888; cursor: pointer;">
+                            <span class="material-icons-round" style="font-size: 2rem;">cloud_upload</span>
+                            <div id="cuti-file-label">Upload File atau Foto</div>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btn-submit-cuti" class="btn-absen" style="margin-top: 20px; font-size: 1rem; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        Ajukan Cuti
+                    </button>
                 </form>
 
                  <div class="footer" style="padding-top: 30px;">
@@ -65,5 +87,93 @@ export default class extends AbstractView {
                 </div>
             </div>
         `;
+    }
+
+    execute() {
+        const form = document.getElementById('cuti-form');
+        const dropzone = document.getElementById('cuti-dropzone');
+        const fileInput = document.getElementById('cuti-file');
+        const fileLabel = document.getElementById('cuti-file-label');
+        const submitBtn = document.getElementById('btn-submit-cuti');
+
+        if (dropzone && fileInput) {
+            dropzone.onclick = () => fileInput.click();
+            fileInput.onchange = (e) => {
+                if (e.target.files.length > 0) {
+                    fileLabel.innerText = e.target.files[0].name;
+                    fileLabel.style.color = '#D32F2F';
+                    fileLabel.style.fontWeight = 'bold';
+                    dropzone.style.borderColor = '#D32F2F';
+                }
+            };
+        }
+
+        if (form) {
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+
+                const start = document.getElementById('cuti-start').value;
+                const end = document.getElementById('cuti-end').value;
+                const desc = document.getElementById('cuti-desc').value;
+                const file = fileInput.files[0];
+                const user = AuthService.getUser();
+
+                if (!start || !end || !desc) return alert('Silakan lengkapi formulir cuti.');
+
+                // Basic validation
+                if (new Date(start) > new Date(end)) {
+                    return alert('Tanggal mulai tidak boleh lebih besar dari tanggal selesai.');
+                }
+
+                // UI Loading state
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="material-icons-round animate-spin">refresh</span> Memproses...';
+                submitBtn.style.opacity = '0.7';
+
+                const permissionData = {
+                    employeeId: user.employeeId,
+                    userName: user.name,
+                    type: 'Cuti',
+                    startDate: start,
+                    endDate: end,
+                    description: desc,
+                    attachment: null
+                };
+
+                // Convert file if exists
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = async () => {
+                        permissionData.attachment = reader.result;
+                        await sendData(permissionData);
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    await sendData(permissionData);
+                }
+
+                async function sendData(data) {
+                    try {
+                        const result = await AttendanceAPI.submitPermission(data);
+
+                        if (result.success) {
+                            alert(`✅ Pengajuan Cuti berhasil dikirim!\nDari: ${start} s/d ${end}\nStatus: Menunggu Persetujuan Atasan.`);
+                            window.location.href = '/home';
+                        } else {
+                            alert('Gagal mengirim pengajuan cuti. Silakan coba lagi.');
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = 'Ajukan Cuti';
+                            submitBtn.style.opacity = '1';
+                        }
+                    } catch (error) {
+                        console.error('Error submitting leave:', error);
+                        alert('Terjadi kesalahan teknis. Silakan coba lagi nanti.');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Ajukan Cuti';
+                        submitBtn.style.opacity = '1';
+                    }
+                }
+            };
+        }
     }
 }

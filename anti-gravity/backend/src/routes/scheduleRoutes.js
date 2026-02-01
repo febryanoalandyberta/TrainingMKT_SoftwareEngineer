@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const scheduleController = require('../controllers/scheduleController');
 
-router.get('/', (req, res) => res.json({ message: 'View Schedule' }));
+router.get('/overrides', scheduleController.getOverrides);
+router.post('/overrides', scheduleController.updateOverride);
 
 module.exports = router;

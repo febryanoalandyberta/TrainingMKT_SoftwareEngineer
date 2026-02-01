@@ -1,4 +1,6 @@
 import AbstractView from "./AbstractView.js";
+import { AuthService } from "../services/AuthService.js";
+
 
 export default class extends AbstractView {
     constructor() {
@@ -7,6 +9,9 @@ export default class extends AbstractView {
     }
 
     async getHtml() {
+        const user = AuthService.getUser();
+        const savedPhoto = localStorage.getItem('user_profile_photo') || null;
+
         return `
             <div class="header">
                  <div class="header-content">
@@ -16,10 +21,15 @@ export default class extends AbstractView {
                     </div>
                      <div class="user-profile">
                         <div class="user-info">
-                            <h4>Febryano Alandy</h4>
-                            <p>IT Support</p>
+                            <h4>${user.name}</h4>
+                            <p>${user.role}</p>
                         </div>
-                         <span class="material-icons-round avatar">account_circle</span>
+                        <a href="/profile" data-link style="text-decoration: none; color: inherit; display: flex;">
+                             ${savedPhoto
+                ? `<img src="${savedPhoto}" class="avatar-img">`
+                : `<span class="material-icons-round avatar">account_circle</span>`
+            }
+                        </a>
                     </div>
                  </div>
             </div>

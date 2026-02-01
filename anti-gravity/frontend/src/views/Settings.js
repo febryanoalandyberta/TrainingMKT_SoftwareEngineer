@@ -1,4 +1,7 @@
 import AbstractView from "./AbstractView.js";
+import { AuthService } from "../services/AuthService.js";
+import { UserService } from "../services/UserService.js";
+
 
 export default class extends AbstractView {
     constructor() {
@@ -7,15 +10,35 @@ export default class extends AbstractView {
     }
 
     async getHtml() {
+        const user = AuthService.getUser();
+        const savedPhoto = localStorage.getItem('user_profile_photo') || null;
+
+        // Fetch from backend
+        let settings = await UserService.getSettings();
+
+        // Default local values if backend fetch fails
+        if (!settings) {
+            settings = {
+                biometricEnabled: localStorage.getItem('biometric_enabled') === 'true',
+                attendanceReminderEnabled: localStorage.getItem('attendance_reminder_enabled') === 'true',
+                permissionsEnabled: localStorage.getItem('permissions_enabled') !== 'false', // Default true
+                darkMode: localStorage.getItem('dark_mode_enabled') === 'true',
+                language: localStorage.getItem('app_language') || 'id'
+            };
+        } else {
+            // Update local storage to match backend for other services
+            localStorage.setItem('biometric_enabled', settings.biometricEnabled);
+            localStorage.setItem('attendance_reminder_enabled', settings.attendanceReminderEnabled);
+            localStorage.setItem('permissions_enabled', settings.permissionsEnabled);
+            localStorage.setItem('dark_mode_enabled', settings.darkMode);
+            localStorage.setItem('app_language', settings.language);
+        }
+
+        const { biometricEnabled, attendanceReminderEnabled: reminderEnabled, permissionsEnabled, darkMode, language } = settings;
+        const langDisplay = language === 'id' ? 'Indonesia' : 'English';
+
         return `
             <div class="header">
-                 <!-- Top Row: Back Arrow if needed (Settings uses container back, but let's keep consistent if other pages use header back, but Settings code shows back in container. Wait, checking previous step 424... Settings header has only Logo+Profile. Ah, the back button was moved to container. So header only needs Logo+Profile) -->
-                 <!-- User wanted logo below dashboard. If Settings has back button in container, the Header is just Logo+Profile.
-                      However, if we want consistency with Home, maybe just keep them in one row if there is no top element? 
-                      The user said "all pages containing logo...". 
-                      But if Home has Hamburger on top, Settings might need spacing. 
-                      Actually, Settings has NO hamburger in header. It has Logo+Profile.
-                      Let's apply .header-content to ensure alignment. -->
                  <div class="header-content">
                      <div class="logo-section">
                         <div class="logo-box">M</div>
@@ -23,10 +46,15 @@ export default class extends AbstractView {
                     </div>
                      <div class="user-profile">
                         <div class="user-info">
-                            <h4>Febryano Alandy</h4>
-                            <p>IT Support</p>
+                            <h4>${user.name}</h4>
+                            <p>${user.role}</p>
                         </div>
-                         <span class="material-icons-round avatar">account_circle</span>
+                        <a href="/profile" data-link style="text-decoration: none; color: inherit; display: flex;">
+                             ${savedPhoto
+                ? `<img src="${savedPhoto}" class="avatar-img">`
+                : `<span class="material-icons-round avatar">account_circle</span>`
+            }
+                        </a>
                     </div>
                  </div>
             </div>
@@ -48,15 +76,19 @@ export default class extends AbstractView {
                 <div class="menu-item-row">
                     <span class="material-icons-round">fingerprint</span>
                     <span style="flex: 1; margin-left: 10px;">Login Biometrik</span>
-                    <span class="material-icons-round toggle-icon" style="color: #4CAF50; font-size: 2rem; cursor: pointer;">toggle_on</span>
+                    <span id="biometric-toggle" class="material-icons-round toggle-icon" style="color: ${biometricEnabled ? '#4CAF50' : '#999'}; font-size: 2rem; cursor: pointer;">
+                        ${biometricEnabled ? 'toggle_on' : 'toggle_off'}
+                    </span>
                 </div>
 
                 <h3 style="font-size: 1rem; color: #000; margin-bottom: 5px; margin-top: 10px;">Notifikasi</h3>
-                <a href="/notifications" class="menu-item-row" data-link>
+                <div class="menu-item-row">
                     <span class="material-icons-round">notifications</span>
-                    <span style="flex: 1; text-align: left; margin-left: 10px;">Pengingat Absen</span>
-                    <span class="material-icons-round toggle-icon" style="color: #4CAF50; font-size: 2rem; cursor: pointer;">toggle_on</span>
-                </a>
+                    <span style="flex: 1; margin-left: 10px;">Pengingat Absen</span>
+                    <span id="reminder-toggle" class="material-icons-round toggle-icon" style="color: ${reminderEnabled ? '#4CAF50' : '#999'}; font-size: 2rem; cursor: pointer;">
+                        ${reminderEnabled ? 'toggle_on' : 'toggle_off'}
+                    </span>
+                </div>
 
                 <h3 style="font-size: 1rem; color: #000; margin-bottom: 5px; margin-top: 10px;">Izin & Diagnostik</h3>
                  <a href="/calibration" class="menu-item-row" data-link>
@@ -67,21 +99,25 @@ export default class extends AbstractView {
                  <div class="menu-item-row">
                     <span class="material-icons-round">camera_alt</span>
                     <span style="flex: 1; margin-left: 10px;">Izin Kamera & Storage</span>
-                    <span class="material-icons-round toggle-icon" style="color: #4CAF50; font-size: 2rem; cursor: pointer;">toggle_on</span>
+                    <span id="permissions-toggle" class="material-icons-round toggle-icon" style="color: ${permissionsEnabled ? '#4CAF50' : '#999'}; font-size: 2rem; cursor: pointer;">
+                        ${permissionsEnabled ? 'toggle_on' : 'toggle_off'}
+                    </span>
                 </div>
 
                 <h3 style="font-size: 1rem; color: #000; margin-bottom: 5px; margin-top: 10px;">Umum</h3>
                  <div class="menu-item-row">
                     <span class="material-icons-round" style="transform: rotate(-45deg);">nightlight_round</span>
                     <span style="flex: 1; margin-left: 10px;">Mode Gelap</span>
-                    <span class="material-icons-round toggle-icon" style="color: #4CAF50; font-size: 2rem; cursor: pointer;">toggle_on</span>
+                    <span id="dark-mode-toggle" class="material-icons-round toggle-icon" style="color: ${darkMode ? '#4CAF50' : '#999'}; font-size: 2rem; cursor: pointer;">
+                        ${darkMode ? 'toggle_on' : 'toggle_off'}
+                    </span>
                 </div>
-                 <a href="/language" class="menu-item-row" data-link>
+                 <div class="menu-item-row" id="language-setting" style="cursor: pointer;">
                     <span class="material-icons-round">language</span>
                     <span style="flex: 1; text-align: left; margin-left: 10px;">Bahasa</span>
-                    <span style="color: #555; font-size: 0.9rem; margin-right: 5px;">Indonesia</span>
+                    <span style="color: #555; font-size: 0.9rem; margin-right: 5px;">${langDisplay}</span>
                     <span class="material-icons-round">chevron_right</span>
-                </a>
+                </div>
 
                 <a href="/login" class="menu-item-row" style="margin-top: 20px; color: #D32F2F;" data-link>
                     <span class="material-icons-round">logout</span>
@@ -97,19 +133,50 @@ export default class extends AbstractView {
     }
 
     execute() {
-        const toggles = document.querySelectorAll('.toggle-icon');
-        toggles.forEach(toggle => {
-            toggle.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                if (toggle.innerText === 'toggle_on') {
-                    toggle.innerText = 'toggle_off';
-                    toggle.style.color = '#999';
-                } else {
-                    toggle.innerText = 'toggle_on';
-                    toggle.style.color = '#4CAF50';
-                }
-            });
-        });
+        const biometricToggle = document.getElementById('biometric-toggle');
+        const reminderToggle = document.getElementById('reminder-toggle');
+        const permissionsToggle = document.getElementById('permissions-toggle');
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
+        const languageSetting = document.getElementById('language-setting');
+
+        const updateToggleServer = async (element, key, storageKey, alertMsg) => {
+            const isEnabled = element.innerText === 'toggle_on';
+            const newState = !isEnabled;
+            element.innerText = newState ? 'toggle_on' : 'toggle_off';
+            element.style.color = newState ? '#4CAF50' : '#999';
+            localStorage.setItem(storageKey, newState);
+            await UserService.updateSettings({ [key]: newState });
+            if (newState && alertMsg) alert(alertMsg);
+        };
+
+        if (biometricToggle) {
+            biometricToggle.onclick = () => updateToggleServer(biometricToggle, 'biometricEnabled', 'biometric_enabled', 'Login Biometrik Berhasil Diaktifkan');
+        }
+
+        if (reminderToggle) {
+            reminderToggle.onclick = () => updateToggleServer(reminderToggle, 'attendanceReminderEnabled', 'attendance_reminder_enabled', 'Pengingat Absensi Berhasil Diaktifkan (10 Menit Sebelum Shift)');
+        }
+
+        if (permissionsToggle) {
+            permissionsToggle.onclick = () => updateToggleServer(permissionsToggle, 'permissionsEnabled', 'permissions_enabled');
+        }
+
+        if (darkModeToggle) {
+            darkModeToggle.onclick = () => updateToggleServer(darkModeToggle, 'darkMode', 'dark_mode_enabled');
+        }
+
+        if (languageSetting) {
+            languageSetting.onclick = async () => {
+                const current = localStorage.getItem('app_language') || 'id';
+                const next = current === 'id' ? 'en' : 'id';
+                localStorage.setItem('app_language', next);
+                await UserService.updateSettings({ language: next });
+
+                // Refresh to show change (Simulated)
+                history.pushState(null, null, '/settings');
+                window.dispatchEvent(new Event('popstate'));
+                alert(`Bahasa diubah ke ${next === 'id' ? 'Indonesia' : 'English'}`);
+            };
+        }
     }
 }

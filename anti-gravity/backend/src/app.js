@@ -8,9 +8,20 @@ const { errorHandler } = require('./middlewares/errorHandler');
 const app = express();
 
 // Middlewares
-app.use(helmet());
-app.use(cors());
-app.use(express.json());
+// CORS Configuration - Allow all origins for development
+app.use(cors({
+    origin: '*', // Allow all origins
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: false
+}));
+
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: false
+}));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(morgan('dev'));
 
 // Routes

@@ -61,6 +61,8 @@ export const router = async () => {
 
     const view = new match.route.view();
     const app = document.querySelector("#app");
+
+
     app.innerHTML = await view.getHtml();
 
     // Allow views to execute scripts

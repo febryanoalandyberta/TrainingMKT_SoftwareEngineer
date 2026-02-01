@@ -1,5 +1,5 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Outfit', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -13,15 +13,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
 body {
   margin: 0;
   display: flex;
@@ -30,56 +21,145 @@ body {
   min-height: 100vh;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
 #app {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  padding: 0;
+  width: 100%;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vanilla:hover {
-  filter: drop-shadow(0 0 2em #f7df1eaa);
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+/* Premium Button Styles to fix Glitch */
+.btn-absen {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+  margin-top: 20px;
 }
-button:hover {
-  border-color: #646cff;
+
+.btn-absen:active {
+  transform: scale(0.98);
 }
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+
+.btn-absen:disabled {
+  background: #424242;
+  /* Darker grey for dark mode compat */
+  color: #aaa;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  opacity: 1;
+  /* Prevent browser default ghosting */
+}
+
+/* Slider Button Styles */
+.slider-container {
+  width: 100%;
+  height: 60px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 30px;
+  position: relative;
+  margin-top: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  user-select: none;
+  touch-action: none;
+  /* Prevent page scrolling while dragging */
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+  font-size: 1rem;
+  z-index: 1;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.slider-handle {
+  width: 52px;
+  height: 52px;
+  background: #2196F3;
+  /* Fallback */
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+  border-radius: 50%;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  z-index: 10;
+  /* Increased z-index */
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: grab;
+  color: white;
+}
+
+.slider-handle::after {
+  content: 'chevron_right';
+  /* Text fallback if font fails */
+  font-family: 'Material Icons', 'Material Icons Round', sans-serif;
+  /* Fallback fonts */
+  font-size: 24px;
+}
+
+.slider-container.loading .slider-handle {
+  transition: left 0.3s ease;
+  left: calc(100% - 56px) !important;
+  background: #4CAF50;
+}
+
+.slider-container.loading .slider-handle::after {
+  content: 'sync';
+  animation: spin 1s linear infinite;
+}
+
+.slider-container.success .slider-handle {
+  left: calc(100% - 56px) !important;
+  background: #4CAF50;
+}
+
+.slider-container.success .slider-handle::after {
+  content: 'check';
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Ensure icons align well */
+.material-icons-round {
+  font-size: 1.2em;
+  vertical-align: middle;
 }
 
 @media (prefers-color-scheme: light) {
@@ -87,10 +167,18 @@ button:focus-visible {
     color: #213547;
     background-color: #ffffff;
   }
-  a:hover {
-    color: #747bff;
+
+  .btn-absen:disabled {
+    background: #e0e0e0;
+    color: #9e9e9e;
   }
-  button {
-    background-color: #f9f9f9;
+
+  .slider-container {
+    background-color: #f0f0f0;
+    border-color: #e0e0e0;
+  }
+
+  .slider-text {
+    color: #888;
   }
 }

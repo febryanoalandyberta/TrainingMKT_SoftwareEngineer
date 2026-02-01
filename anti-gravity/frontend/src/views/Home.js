@@ -1,4 +1,7 @@
 import AbstractView from "./AbstractView.js";
+import { AuthService } from "../services/AuthService.js";
+import { NotificationService } from "../services/NotificationService.js";
+
 
 export default class extends AbstractView {
     constructor() {
@@ -7,73 +10,51 @@ export default class extends AbstractView {
     }
 
     async getHtml() {
+        const user = AuthService.getUser();
+        const savedPhoto = localStorage.getItem('user_profile_photo') || null;
+
         return `
-            <!-- Drawer Overlay -->
-            <div id="drawer-overlay" class="drawer-overlay"></div>
-
-            <!-- Animated Drawer Content -->
-            <div id="drawer-menu" class="drawer-content">
-                <div class="drawer-header-fancy">
-                    <div class="drawer-avatar-large">
-                        <span class="material-icons-round">person</span>
-                    </div>
-                    <div class="drawer-user-name">Febryano Alandy</div>
-                    <div class="drawer-user-role">IT Support</div>
+            <!-- Profile Dropdown Menu -->
+            <div id="profile-dropdown" class="profile-dropdown">
+                <div class="dropdown-header">
+                    <div class="dropdown-user">${user.name}</div>
+                    <div class="dropdown-role">${user.role}</div>
                 </div>
-                
-                <div class="drawer-body">
-                    <div class="drawer-label">Menu</div>
-                    <a href="/profile" class="drawer-menu-item" data-link>
-                        <span class="material-icons-round">account_circle</span>
-                        <span>My Profile</span>
-                    </a>
-                    <a href="/notifications" class="drawer-menu-item" data-link>
-                        <span class="material-icons-round">notifications</span>
-                        <span>Notifications</span>
-                        <span style="margin-left: auto; background: #D32F2F; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold;">3</span>
-                    </a>
-                    
-                    <div class="drawer-divider"></div>
-                    
-                    <div class="drawer-label">Settings</div>
-                    <a href="/settings" class="drawer-menu-item" data-link>
-                        <span class="material-icons-round">settings</span>
-                        <span>App Settings</span>
-                    </a>
-                    <a href="/help" class="drawer-menu-item" data-link>
-                        <span class="material-icons-round">help_outline</span>
-                        <span>Help & Support</span>
-                    </a>
-                </div>
-
-                <div style="padding: 15px; border-top: 1px solid #eee; text-align: center;">
-                    <button id="close-drawer-btn" style="width: 100%; border: none; background: #f5f5f5; padding: 10px; border-radius: 8px; color: #555; font-weight: 500; cursor: pointer;">
-                        Close Menu
-                    </button>
-                    <div style="font-size: 0.7rem; color: #aaa; margin-top: 10px;">
-                        App Version 1.0.0
-                    </div>
-                </div>
+                <div class="dropdown-divider"></div>
+                <a href="/notifications" class="dropdown-item" data-link>
+                    <span class="material-icons-round">notifications</span>
+                    <span>Notifications</span>
+                    <span id="notif-badge-menu" class="badge-mini" style="display: none;">0</span>
+                </a>
+                <a href="/settings" class="dropdown-item" data-link>
+                    <span class="material-icons-round">settings</span>
+                    <span>App Settings</span>
+                </a>
+                <div class="dropdown-divider"></div>
+                <a href="/profile" class="dropdown-item" data-link>
+                    <span class="material-icons-round">account_circle</span>
+                    <span>My Profile</span>
+                </a>
             </div>
 
             <div class="header">
-                 <div id="hamburger-btn" style="cursor: pointer; align-self: flex-start;">
-                    <div style="border-bottom: 2px solid #333; width: 22px; margin-bottom: 4px;"></div>
-                    <div style="border-bottom: 2px solid #333; width: 22px; margin-bottom: 4px;"></div>
-                    <div style="border-bottom: 2px solid #333; width: 22px;"></div>
-                </div>
-
                  <div class="header-content">
                      <div class="logo-section">
                         <div class="logo-box">M</div>
                         <span class="company-name">PT Mega Kreasi Tech</span>
                     </div>
-                     <div class="user-profile">
+                     <div class="user-profile" id="profile-trigger">
                         <div class="user-info">
-                            <h4>Febryano Alandy</h4>
-                            <p>IT Support</p>
+                            <h4>${user.name}</h4>
+                            <p>${user.role}</p>
                         </div>
-                         <span class="material-icons-round avatar">account_circle</span>
+                        <div class="avatar-wrapper">
+                             ${savedPhoto
+                ? `<img src="${savedPhoto}" class="avatar-img">`
+                : `<span class="material-icons-round avatar">account_circle</span>`
+            }
+                            <span id="notif-count-profile" class="notif-badge-profile" style="display: none;">0</span>
+                        </div>
                     </div>
                  </div>
             </div>
@@ -133,32 +114,52 @@ export default class extends AbstractView {
     }
 
     execute() {
-        const btn = document.getElementById('hamburger-btn');
-        const overlay = document.getElementById('drawer-overlay');
-        const menu = document.getElementById('drawer-menu');
-        const closeBtn = document.getElementById('close-drawer-btn');
+        const trigger = document.getElementById('profile-trigger');
+        const dropdown = document.getElementById('profile-dropdown');
+        const notifCountProfile = document.getElementById('notif-count-profile');
+        const notifBadgeMenu = document.getElementById('notif-badge-menu');
 
-        function openMenu() {
-            if (overlay) overlay.classList.add('open');
-            if (menu) menu.classList.add('open');
+        if (trigger && dropdown) {
+            trigger.onclick = (e) => {
+                e.stopPropagation();
+                dropdown.classList.toggle('show');
+            };
+
+            // Close when clicking outside
+            document.addEventListener('click', () => {
+                dropdown.classList.remove('show');
+            });
+
+            dropdown.onclick = (e) => e.stopPropagation();
         }
 
-        function closeMenu() {
-            if (overlay) overlay.classList.remove('open');
-            if (menu) menu.classList.remove('open');
+        // Real-time Notifications
+        const updateNotifs = (count) => {
+            const badgeProfile = document.getElementById('notif-count-profile');
+            const badgeMenu = document.getElementById('notif-badge-menu');
+
+            if (!badgeProfile) return;
+
+            if (count > 0) {
+                badgeProfile.style.display = 'flex';
+                badgeProfile.innerText = count > 9 ? '9+' : count;
+
+                if (badgeMenu) {
+                    badgeMenu.style.display = 'flex';
+                    badgeMenu.innerText = count;
+                }
+            } else {
+                badgeProfile.style.display = 'none';
+                if (badgeMenu) badgeMenu.style.display = 'none';
+            }
+        };
+
+        NotificationService.subscribe(updateNotifs);
+
+        // Clear badge when clicking 'Notifications' dropdown item
+        const notifLink = dropdown.querySelector('a[href="/notifications"]');
+        if (notifLink) {
+            notifLink.onclick = () => NotificationService.markAsRead();
         }
-
-        if (btn) btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            openMenu();
-        });
-
-        if (closeBtn) closeBtn.addEventListener('click', () => {
-            closeMenu();
-        });
-
-        if (overlay) overlay.addEventListener('click', () => {
-            closeMenu();
-        });
     }
 }

@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const attendanceController = require('../controllers/attendanceController');
 
-router.post('/check-in', (req, res) => res.json({ message: 'Check In' }));
-router.post('/check-out', (req, res) => res.json({ message: 'Check Out' }));
-router.get('/history', (req, res) => res.json({ message: 'Attendance History' }));
+router.post('/submit', attendanceController.submitLog);
+router.get('/logs', attendanceController.getAttendanceLogs);
+router.get('/history', attendanceController.getHistory);
+router.post('/permission', attendanceController.submitPermission);
 
 module.exports = router;
