@@ -15,65 +15,65 @@ const keyPath = path.join(certDir, 'key.pem');
 
 async function startServer() {
     let server;
-    try {
-        // If Production (Render/Cloud), use HTTP (SSL handled by provider)
-        if (process.env.NODE_ENV === 'production') {
-            throw new Error('Production mode: Skipping local SSL generation');
-        }
+    if (config.env === 'production') {
+        server = http.createServer(app);
+        console.log('✅ Starting HTTP server (Production Mode)...');
+    } else {
+        try {
+            let key, cert;
 
-        let key, cert;
+            // Try to load existing certificates
+            if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+                console.log('Loading existing SSL certificates...');
+                key = fs.readFileSync(keyPath, 'utf8');
+                cert = fs.readFileSync(certPath, 'utf8');
+            } else {
+                // Generate new self-signed certificate
+                console.log('Generating new self-signed SSL certificate...');
 
-        // Try to load existing certificates
-        if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
-            console.log('Loading existing SSL certificates...');
-            key = fs.readFileSync(keyPath, 'utf8');
-            cert = fs.readFileSync(certPath, 'utf8');
-        } else {
-            // Generate new self-signed certificate
-            console.log('Generating new self-signed SSL certificate...');
+                // Create certs directory if it doesn't exist
+                if (!fs.existsSync(certDir)) {
+                    fs.mkdirSync(certDir, { recursive: true });
+                }
 
-            // Create certs directory if it doesn't exist
-            if (!fs.existsSync(certDir)) {
-                fs.mkdirSync(certDir, { recursive: true });
+                const attrs = [{ name: 'commonName', value: 'localhost' }];
+                const pems = await selfsigned.generate(attrs, {
+                    days: 365,
+                    keySize: 2048,
+                    algorithm: 'sha256',
+                    extensions: [{
+                        name: 'subjectAltName',
+                        altNames: [
+                            { type: 2, value: 'localhost' },
+                            { type: 2, value: '*.localhost' },
+                            { type: 7, ip: '127.0.0.1' },
+                            { type: 7, ip: '10.20.0.57' },
+                            { type: 7, ip: '0.0.0.0' }
+                        ]
+                    }]
+                });
+
+                key = pems.private;
+                cert = pems.cert;
+
+                // Save for future use
+                fs.writeFileSync(keyPath, key);
+                fs.writeFileSync(certPath, cert);
+                console.log('SSL certificates saved to:', certDir);
             }
 
-            const attrs = [{ name: 'commonName', value: 'localhost' }];
-            const pems = await selfsigned.generate(attrs, {
-                days: 365,
-                keySize: 2048,
-                algorithm: 'sha256',
-                extensions: [{
-                    name: 'subjectAltName',
-                    altNames: [
-                        { type: 2, value: 'localhost' },
-                        { type: 2, value: '*.localhost' },
-                        { type: 7, ip: '127.0.0.1' },
-                        { type: 7, ip: '10.20.0.57' },
-                        { type: 7, ip: '0.0.0.0' }
-                    ]
-                }]
-            });
+            // Create HTTPS server
+            const options = { key, cert };
+            server = https.createServer(options, app);
+            console.log('✅ Starting HTTPS server...');
 
-            key = pems.private;
-            cert = pems.cert;
-
-            // Save for future use
-            fs.writeFileSync(keyPath, key);
-            fs.writeFileSync(certPath, cert);
-            console.log('SSL certificates saved to:', certDir);
+        } catch (error) {
+            // Fallback to HTTP if HTTPS setup fails
+            console.warn('⚠️  HTTPS setup failed, falling back to HTTP:', error.message);
+            console.error(error);
+            server = http.createServer(app);
+            console.log('Starting HTTP server...');
         }
-
-        // Create HTTPS server
-        const options = { key, cert };
-        server = https.createServer(options, app);
-        console.log('✅ Starting HTTPS server...');
-
-    } catch (error) {
-        // Fallback to HTTP if HTTPS setup fails
-        console.warn('⚠️  HTTPS setup failed, falling back to HTTP:', error.message);
-        console.error(error);
-        server = http.createServer(app);
-        console.log('Starting HTTP server...');
     }
 
     server.listen(PORT, '0.0.0.0', () => {

@@ -2,10 +2,7 @@ import { defineConfig } from 'vite'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 
 export default defineConfig({
-    plugins: [
-        // Only use Basic SSL in development mode, not in production build
-        process.env.NODE_ENV === 'development' ? basicSsl() : null
-    ],
+    plugins: [basicSsl()],
     server: {
         host: '0.0.0.0', // Listen on all network interfaces
         port: 5173,
