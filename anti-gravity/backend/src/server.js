@@ -16,6 +16,11 @@ const keyPath = path.join(certDir, 'key.pem');
 async function startServer() {
     let server;
     try {
+        // If Production (Render/Cloud), use HTTP (SSL handled by provider)
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('Production mode: Skipping local SSL generation');
+        }
+
         let key, cert;
 
         // Try to load existing certificates
